@@ -2,15 +2,17 @@ import { Component } from '@angular/core';
 import { MenuItem } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { TieredMenuModule } from 'primeng/tieredmenu';
+import { Card } from "../../components/card/card";
 
 @Component({
   selector: 'app-home',
-  imports: [ButtonModule, TieredMenuModule],
+  imports: [ButtonModule, TieredMenuModule, Card],
   templateUrl: './home.html',
   styleUrl: './home.scss',
 })
 export class Home {
    darkMode = false;
+   iterations = Array.from({ length: 80 });
    filters: MenuItem[]  = [
       {
         label: 'Transition',
