@@ -1,3 +1,10 @@
+declare const process: {
+  env: {
+    BASIC_AUTH_USER: string
+    BASIC_AUTH_PASSWORD: string
+  }
+}
+
 export function middleware(request: Request) {
   const auth = request.headers.get('authorization')
 
