@@ -1,8 +1,5 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-
-export function middleware(req: NextRequest) {
-  const auth = req.headers.get('authorization')
+export function middleware(request: Request) {
+  const auth = request.headers.get('authorization')
 
   if (!auth) {
     return new Response('Authentication required', {
@@ -13,7 +10,7 @@ export function middleware(req: NextRequest) {
     })
   }
 
-  const [, encoded] = auth.split(' ')
+  const encoded = auth.split(' ')[1]
   const decoded = atob(encoded)
   const [user, pass] = decoded.split(':')
 
@@ -21,7 +18,7 @@ export function middleware(req: NextRequest) {
     user === process.env.BASIC_AUTH_USER &&
     pass === process.env.BASIC_AUTH_PASSWORD
   ) {
-    return NextResponse.next()
+    return fetch(request)
   }
 
   return new Response('Unauthorized', { status: 401 })
