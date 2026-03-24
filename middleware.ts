@@ -25,7 +25,9 @@ export function middleware(request: Request) {
     user === process.env.BASIC_AUTH_USER &&
     pass === process.env.BASIC_AUTH_PASSWORD
   ) {
-    return fetch(request)
+    // ✅ NÃO RETORNE NADA
+    // isso libera o acesso aos arquivos Angular
+    return
   }
 
   return new Response('Unauthorized', { status: 401 })
