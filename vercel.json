@@ -1,4 +1,4 @@
 {
   "framework": "angular",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist/refil.app.ui"
 }
