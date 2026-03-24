@@ -5,6 +5,10 @@ declare const process: {
   }
 }
 
+export const config = {
+  matcher: '/:path*', // 🔴 ISSO É O MAIS IMPORTANTE
+}
+
 export function middleware(request: Request) {
   const auth = request.headers.get('authorization')
 
@@ -25,8 +29,7 @@ export function middleware(request: Request) {
     user === process.env.BASIC_AUTH_USER &&
     pass === process.env.BASIC_AUTH_PASSWORD
   ) {
-    // ✅ NÃO RETORNE NADA
-    // isso libera o acesso aos arquivos Angular
+    // ✅ acesso liberado
     return
   }
 
