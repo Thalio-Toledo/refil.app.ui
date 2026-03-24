@@ -3,11 +3,11 @@ import { Home } from './views/home/home';
 import { authGuard } from './services/auth.guard';
 
 export const routes: Routes = [
-    // {
-    //     path: 'home',
-    //     component: Home,
-    // },
-
+    {
+    path: '',
+    redirectTo: 'home',
+    pathMatch: 'full'
+    },
     {
     path: 'home',
     loadComponent: () =>

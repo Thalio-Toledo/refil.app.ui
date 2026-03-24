@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core'
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly USER = 'admin'
-  private readonly PASSWORD = '123456'
+  private readonly PASSWORD = '@dm1n'
 
   isAuthenticated(): boolean {
     return localStorage.getItem('auth') === 'true'
