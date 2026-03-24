@@ -13,10 +13,5 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./views/home/home').then(m => m.Home),
     canActivate: [authGuard]
-  }
-  {
-    path: 'login',
-    loadComponent: () =>
-      import('./services/login-modal.service').then(m => m.LoginModalService)
-  }
+  },
 ];
