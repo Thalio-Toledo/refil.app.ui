@@ -6,10 +6,10 @@ declare const process: {
 }
 
 export const config = {
-  matcher: '/:path*', // 🔴 ISSO É O MAIS IMPORTANTE
+  matcher: '/:path*',
 }
 
-export function middleware(request: Request) {
+export function middleware(request: Request): Response | void {
   const auth = request.headers.get('authorization')
 
   if (!auth) {
