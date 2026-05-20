@@ -1,0 +1,80 @@
+
+<p-card header="Cadastro de Vídeo" styleClass="shadow-4 max-w-40rem mx-auto">
+
+  <form [formGroup]="form"  class="flex flex-column gap-4">
+    <div class="flex flex-column gap-2">
+      <p-iftalabel>
+            <input pInputText id="name" formControlName="name" autocomplete="off" placeholder="Type the video name"/>
+            <label for="name">Video Name</label>
+            @if(form.get('name').invalid && form.get('name').touched){
+                <small class="p-error">
+                    Nome obrigatório (mín. 3 caracteres)
+                </small>
+            }
+       </p-iftalabel>
+    </div>
+
+    <div class="flex flex-column gap-2">
+      <p-iftalabel>
+            <input pInputText id="author" formControlName="author" autocomplete="off" placeholder="Author"/>
+            <label for="author">Author</label>
+            @if(form.get('author').invalid && form.get('author').touched){
+                <small class="p-error">
+                    Nome obrigatório (mín. 3 caracteres)
+                </small>
+            }
+       </p-iftalabel>
+    </div>
+
+    <div class="flex flex-column gap-2">
+      <p-iftalabel>
+        <input pInputText id="Tag"  formControlName="tag" autocomplete="off" />
+        <label for="tag">Tag</label>
+        <p-button label="Add Tag" icon="pi pi-plus"  [loading]="loading()" (onClick)="addTag()" />
+      </p-iftalabel>
+    </div>
+
+    @for (tag of tags; track $index) {
+      <p-chip [label]="tag" [removable]="true" />
+    }
+
+    <div class="flex flex-column gap-2">
+      <p-toast />
+      <!-- <p-fileupload name="demo[]" 
+        (onUpload)="onUpload($event)" 
+        [multiple]="true"
+         accept="image/*" 
+         maxFileSize="1000000"
+         mode="advanced">
+        <ng-template #empty>
+            <div>Drag and drop files to here to upload.</div>
+        </ng-template>
+      </p-fileupload> -->
+
+      <p-fileUpload
+          name="images"
+          mode="advanced"
+          accept="image/*"
+          [multiple]="true"
+          [showUploadButton]="false"
+          [maxFileSize]="1000000"
+          [auto]="false"
+          [customUpload]="true"
+          (onSelect)="onFileSelect($event)">
+
+          <ng-template #empty>
+              <div>Drag and drop files to here to upload.</div>
+          </ng-template>
+
+      </p-fileUpload>
+    </div>
+
+    <div class="flex justify-content-end">
+      <button (click)="save()" pButton type="submit" label="Save" icon="pi pi-check"
+              [disabled]="form.invalid">
+      </button>
+    </div>
+
+  </form>
+
+</p-card>
