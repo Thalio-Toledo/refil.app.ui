@@ -153,7 +153,7 @@ body {
   pointer-events: none;
 }
 
-.playhead {
+.selection-edge {
   position: absolute;
   top: 0;
   width: 2px;
@@ -161,9 +161,41 @@ body {
   background: $accent;
   transform: translateX(-50%);
   pointer-events: none;
+  z-index: 2;
 }
 
-.range-handle {
+.selection-pin {
+  position: absolute;
+  top: -10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: $accent;
+  border: 2px solid white;
+  box-shadow: 0 10px 24px rgba($accent, 0.24);
+  transform: translateX(-50%);
+  cursor: grab;
+  z-index: 4;
+  pointer-events: all;
+  touch-action: none;
+  user-select: none;
+}
+
+.selection-pin:active {
+  cursor: grabbing;
+}
+
+.selection-pin.playhead {
+  background: white;
+  border-color: $accent;
+}
+
+.selection-pin:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.range-handle.playhead-range {
   position: absolute;
   top: 0;
   left: 0;
@@ -174,6 +206,33 @@ body {
   -webkit-appearance: none;
   outline: none;
   pointer-events: all;
+}
+
+.range-handle.playhead-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: $accent;
+  border: 2px solid white;
+  box-shadow: 0 0 0 4px rgba($accent, 0.14);
+  cursor: pointer;
+}
+
+.range-handle.playhead-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: $accent;
+  border: 2px solid white;
+  box-shadow: 0 0 0 4px rgba($accent, 0.14);
+  cursor: pointer;
+}
+
+.range-handle.playhead-range::-webkit-slider-runnable-track,
+.range-handle.playhead-range::-moz-range-track {
+  background: transparent;
+  height: 100%;
 }
 
 .range-handle::-webkit-slider-thumb {

@@ -73,39 +73,34 @@
           <span>{{ formatTime(selectionStart) }}</span>
           <span>{{ formatTime(selectionEnd) }}</span>
         </div>
-        <div class="timeline-track">
+        <div class="timeline-track" #timelineTrack>
           <div class="selection-range" [style.left.%]="selectionStartPercent" [style.width.%]="selectionWidthPercent"></div>
-          <div class="playhead" [style.left.%]="playheadPercent"></div>
-          <input
-            class="range-handle start"
-            type="range"
-            min="0"
-            [max]="duration"
-            step="0.04"
-            [value]="selectionStart"
-            (input)="setSelectionStart($event)"
+          <div class="selection-edge start" [style.left.%]="selectionStartPercent"></div>
+          <div class="selection-edge end" [style.left.%]="selectionEndPercent"></div>
+          <button
+            class="selection-pin start"
+            type="button"
+            [style.left.%]="selectionStartPercent"
+            (pointerdown)="startRangeDrag('start', $event)"
             [disabled]="!loaded"
-          />
-          <input
-            class="range-handle end"
-            type="range"
-            min="0"
-            [max]="duration"
-            step="0.04"
-            [value]="selectionEnd"
-            (input)="setSelectionEnd($event)"
+            aria-label="Mover início da seleção"
+          ></button>
+          <button
+            class="selection-pin end"
+            type="button"
+            [style.left.%]="selectionEndPercent"
+            (pointerdown)="startRangeDrag('end', $event)"
             [disabled]="!loaded"
-          />
-          <input
-            class="range-handle playhead-range"
-            type="range"
-            min="0"
-            [max]="duration"
-            step="0.04"
-            [value]="currentTime"
-            (input)="setPlayhead($event)"
+            aria-label="Mover fim da seleção"
+          ></button>
+          <button
+            class="selection-pin playhead"
+            type="button"
+            [style.left.%]="playheadPercent"
+            (pointerdown)="startRangeDrag('playhead', $event)"
             [disabled]="!loaded"
-          />
+            aria-label="Mover playhead"
+          ></button>
         </div>
       </div>
 

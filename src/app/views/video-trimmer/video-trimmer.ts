@@ -22,8 +22,12 @@ interface BufferItem {
 export class VideoTrimmer {
   @ViewChild('videoPlayer', { static: false }) videoPlayer?: ElementRef<HTMLVideoElement>;
   @ViewChild('fileInput', { static: false }) fileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('timelineTrack', { static: false }) timelineTrack?: ElementRef<HTMLDivElement>;
 
   loaded = false;
+  activeDrag: 'start' | 'end' | 'playhead' | null = null;
+  private pointerMoveListener = this.onDocumentPointerMove.bind(this);
+  private pointerUpListener = this.onDocumentPointerUp.bind(this);
   videoSrc?: string;
   videoTitle = '';
   videoAuthor = '';
@@ -46,6 +50,10 @@ export class VideoTrimmer {
 
   get selectionWidthPercent() {
     return this.duration ? ((this.selectionEnd - this.selectionStart) / this.duration) * 100 : 0;
+  }
+
+  get selectionEndPercent() {
+    return this.duration ? (this.selectionEnd / this.duration) * 100 : 0;
   }
 
   get playheadPercent() {
@@ -112,6 +120,49 @@ export class VideoTrimmer {
     const value = parseFloat((event.target as HTMLInputElement).value);
     const maximum = Math.min(this.duration, Math.max(value, this.selectionStart + 0.04));
     this.selectionEnd = maximum;
+  }
+
+  startRangeDrag(type: 'start' | 'end' | 'playhead', event: PointerEvent) {
+    if (!this.loaded) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.activeDrag = type;
+    (event.currentTarget as HTMLElement)?.setPointerCapture?.(event.pointerId);
+    document.addEventListener('pointermove', this.pointerMoveListener, { passive: false });
+    document.addEventListener('pointerup', this.pointerUpListener);
+    document.addEventListener('pointercancel', this.pointerUpListener);
+  }
+
+  private onDocumentPointerMove(event: PointerEvent) {
+    if (!this.activeDrag || !this.timelineTrack || !this.duration) {
+      return;
+    }
+
+    const rect = this.timelineTrack.nativeElement.getBoundingClientRect();
+    const rawPercent = (event.clientX - rect.left) / rect.width;
+    const clampedPercent = Math.min(Math.max(rawPercent, 0), 1);
+    const value = clampedPercent * this.duration;
+
+    if (this.activeDrag === 'start') {
+      this.selectionStart = Math.min(Math.max(0, value), this.selectionEnd - 0.04);
+    } else if (this.activeDrag === 'end') {
+      this.selectionEnd = Math.max(Math.min(this.duration, value), this.selectionStart + 0.04);
+    } else {
+      this.currentTime = value;
+      if (this.videoPlayer?.nativeElement) {
+        this.videoPlayer.nativeElement.currentTime = value;
+      }
+    }
+  }
+
+  private onDocumentPointerUp() {
+    this.activeDrag = null;
+    document.removeEventListener('pointermove', this.pointerMoveListener);
+    document.removeEventListener('pointerup', this.pointerUpListener);
+    document.removeEventListener('pointercancel', this.pointerUpListener);
   }
 
   async captureFrame() {
