@@ -83,9 +83,15 @@ body {
   }
 }
 
-.upload-btn {
+:host ::ng-deep .upload-btn {
   width: 220px;
   height: 48px;
+}
+
+:host ::ng-deep .app-orange-button {
+  background: $accent;
+  border-color: $accent;
+  color: white;
 }
 
 .preview-meta {
@@ -116,6 +122,12 @@ body {
   color: $dark;
 }
 
+.video-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .timeline {
   display: grid;
   gap: 14px;
@@ -136,44 +148,48 @@ body {
 .timeline-track {
   position: relative;
   width: 100%;
-  height: 42px;
+  height: 54px;
   background: $surface;
   border: 1px solid $border;
-  border-radius: 18px;
-  padding: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  touch-action: none;
 }
 
 .selection-range {
   position: absolute;
-  top: 0;
-  height: 100%;
+  top: 12px;
+  height: 30px;
   background: rgba($accent, 0.16);
   border: 1px solid $accent;
-  border-radius: 16px;
+  border-radius: 8px;
   pointer-events: none;
 }
 
 .selection-edge {
   position: absolute;
-  top: 0;
+  top: 8px;
   width: 2px;
-  height: 100%;
+  height: 38px;
   background: $accent;
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 2;
 }
 
-.selection-pin {
+.timeline-track .timeline-handle {
   position: absolute;
-  top: -10px;
-  width: 24px;
-  height: 24px;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
   border-radius: 50%;
   background: $accent;
   border: 2px solid white;
   box-shadow: 0 10px 24px rgba($accent, 0.24);
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   cursor: grab;
   z-index: 4;
   pointer-events: all;
@@ -181,18 +197,41 @@ body {
   user-select: none;
 }
 
-.selection-pin:active {
+.timeline-track .timeline-handle:active {
   cursor: grabbing;
 }
 
-.selection-pin.playhead {
-  background: white;
+.timeline-track .timeline-handle.playhead {
+  top: 0;
+  width: 18px;
+  height: 54px;
+  border-radius: 10px;
+  background: $dark;
   border-color: $accent;
+  box-shadow: 0 8px 20px rgba($dark, 0.2);
+  transform: translateX(-50%);
+  z-index: 5;
 }
 
-.selection-pin:disabled {
+.timeline-track .timeline-handle:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.handle-label {
+  color: white;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.playhead-line {
+  width: 2px;
+  height: 42px;
+  border-radius: 999px;
+  background: white;
+  display: block;
 }
 
 .range-handle.playhead-range {
@@ -422,6 +461,11 @@ button:disabled {
   gap: 12px;
 }
 
+.asset-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
 .asset-name {
   font-size: 14px;
   font-weight: 600;
@@ -473,6 +517,17 @@ button:disabled {
 
 .tag-input-row button {
   width: 100%;
+}
+
+.tag-input-row p-button {
+  width: 100%;
+}
+
+:host ::ng-deep .add-tag-button {
+  width: 100%;
+  background: $accent;
+  border-color: $accent;
+  color: white;
 }
 
 @media (max-width: 1160px) {

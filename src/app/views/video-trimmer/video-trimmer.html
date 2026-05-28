@@ -31,7 +31,12 @@
           </div>
         </ng-container>
         <ng-template #noVideo>
-          <label class="btn-primary upload-btn" for="video-upload-input">FAZER UPLOAD</label>
+          <p-button
+            label="FAZER UPLOAD"
+            icon="pi pi-upload"
+            styleClass="upload-btn app-orange-button"
+            (onClick)="openFilePicker()"
+          />
         </ng-template>
       </div>
 
@@ -62,9 +67,14 @@
             type="text"
             [disabled]="!loaded"
             [value]="videoTagsInput"
-            (input)="videoTagsInput = $any($event.target).value"
+            (input)="onVideoTagsInput($any($event.target).value)"
             placeholder="tag1, tag2, tag3"
           />
+          <div class="video-tags" *ngIf="videoTags.length">
+            <span class="tag" *ngFor="let tag of videoTags; let i = index">
+              {{ tag }} <button type="button" (click)="removeVideoTag(i)" aria-label="Remover tag">×</button>
+            </span>
+          </div>
         </div>
       </div>
 
@@ -73,53 +83,57 @@
           <span>{{ formatTime(selectionStart) }}</span>
           <span>{{ formatTime(selectionEnd) }}</span>
         </div>
-        <div class="timeline-track" #timelineTrack>
+        <div class="timeline-track" #timelineTrack (pointerdown)="movePlayheadFromTimeline($event)">
           <div class="selection-range" [style.left.%]="selectionStartPercent" [style.width.%]="selectionWidthPercent"></div>
           <div class="selection-edge start" [style.left.%]="selectionStartPercent"></div>
           <div class="selection-edge end" [style.left.%]="selectionEndPercent"></div>
           <button
-            class="selection-pin start"
+            class="timeline-handle range-handle start"
             type="button"
             [style.left.%]="selectionStartPercent"
             (pointerdown)="startRangeDrag('start', $event)"
             [disabled]="!loaded"
             aria-label="Mover início da seleção"
-          ></button>
+            title="Início do range"
+          >
+            <span class="handle-label">IN</span>
+          </button>
           <button
-            class="selection-pin end"
+            class="timeline-handle range-handle end"
             type="button"
             [style.left.%]="selectionEndPercent"
             (pointerdown)="startRangeDrag('end', $event)"
             [disabled]="!loaded"
             aria-label="Mover fim da seleção"
-          ></button>
+            title="Fim do range"
+          >
+            <span class="handle-label">OUT</span>
+          </button>
           <button
-            class="selection-pin playhead"
+            class="timeline-handle playhead"
             type="button"
             [style.left.%]="playheadPercent"
             (pointerdown)="startRangeDrag('playhead', $event)"
             [disabled]="!loaded"
             aria-label="Mover playhead"
-          ></button>
+            title="Percorrer vídeo"
+          >
+            <span class="playhead-line"></span>
+          </button>
         </div>
       </div>
 
       <div class="capture-actions">
         <div class="capture-block">
-          <div class="format-pill">
-            <button type="button" [class.active]="frameFormat === 'png'" (click)="frameFormat = 'png'" [disabled]="!loaded">PNG</button>
-            <button type="button" [class.active]="frameFormat === 'jpg'" (click)="frameFormat = 'jpg'" [disabled]="!loaded">JPG</button>
-          </div>
-          <button class="btn-primary wide" type="button" (click)="captureFrame()" [disabled]="!loaded">CAPTURAR FRAME</button>
+          <button class="btn-primary wide" type="button" (click)="captureFrame()" [disabled]="!frameCaptureReady || capturingFrame">
+            {{ capturingFrame ? 'GERANDO JPG...' : 'CAPTURAR JPG' }}
+          </button>
+          <small class="action-note" *ngIf="capturingFrame">Gerando imagem.</small>
         </div>
 
         <div class="capture-block">
-          <div class="format-pill">
-            <button type="button" [class.active]="animationFormat === 'gif'" (click)="animationFormat = 'gif'" [disabled]="!loaded">GIF</button>
-            <button type="button" [class.active]="animationFormat === 'webm'" (click)="animationFormat = 'webm'" [disabled]="!loaded">WEBM</button>
-          </div>
-          <button class="btn-primary wide" type="button" (click)="captureAnimation()" [disabled]="!loaded || capturingAnimation">
-            {{ capturingAnimation ? 'GRAVANDO...' : 'CAPTURAR ANIMAÇÃO' }}
+          <button class="btn-primary wide" type="button" (click)="captureAnimation()" [disabled]="!animationCaptureReady || capturingAnimation">
+            {{ capturingAnimation ? 'GRAVANDO...' : 'CAPTURAR WEBM' }}
           </button>
           <small class="action-note" *ngIf="capturingAnimation">Gerando animação, isso pode levar alguns segundos.</small>
         </div>
@@ -135,17 +149,6 @@
         <button class="btn-primary btn-sm" type="button" [disabled]="sessionBuffer.length === 0">UPLOAD</button>
       </div>
 
-      <div class="buffer-info">
-        <label>Tags globais</label>
-        <input
-          type="text"
-          [disabled]="!loaded"
-          [value]="videoTagsInput"
-          (input)="videoTagsInput = $any($event.target).value"
-          placeholder="Use vírgula para separar"
-        />
-      </div>
-
       <div class="asset-list">
         <div class="asset" *ngFor="let item of sessionBuffer">
           <div class="asset-thumb">
@@ -157,7 +160,21 @@
               <span class="asset-type">{{ item.type.toUpperCase() }}</span>
             </div>
             <div class="asset-row asset-actions">
-              <button class="btn-outline btn-sm" type="button" (click)="downloadItem(item)" [disabled]="!item.blob">BAIXAR</button>
+              <p-button
+                icon="pi pi-download"
+                severity="info"
+                size="small"
+                (onClick)="downloadItem(item)"
+                [disabled]="!item.blob"
+              />
+              <p-button
+                icon="pi pi-trash"
+                severity="danger"
+                size="small"
+                ariaLabel="Remover captura"
+                title="Remover captura"
+                (onClick)="deleteItem(item.id)"
+              />
               <span *ngIf="item.blob" class="asset-status">Pronto para download</span>
             </div>
             <div class="asset-tags">
@@ -173,7 +190,12 @@
                 (input)="item.editTag = $any($event.target).value"
                 placeholder="Adicionar tag"
               />
-              <button type="button" (click)="addTag(item)" [disabled]="!loaded || !item.editTag">Adicionar</button>
+              <p-button
+                label="Adicionar"
+                styleClass="add-tag-button"
+                (onClick)="addTag(item)"
+                [disabled]="!loaded || !item.editTag"
+              />
             </div>
           </div>
         </div>

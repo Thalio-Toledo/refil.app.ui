@@ -1,11 +1,12 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ButtonModule } from 'primeng/button';
 
 interface BufferItem {
   id: number;
   thumbnail: string;
   name: string;
-  type: 'png' | 'jpg' | 'gif' | 'webm';
+  type: 'jpg' | 'webm';
   tags: string[];
   editTag?: string;
   blob?: Blob;
@@ -15,7 +16,7 @@ interface BufferItem {
 @Component({
   selector: 'app-video-trimmer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ButtonModule],
   templateUrl: './video-trimmer.html',
   styleUrl: './video-trimmer.scss',
 })
@@ -32,17 +33,20 @@ export class VideoTrimmer {
   videoTitle = '';
   videoAuthor = '';
   videoTagsInput = '';
+  videoTags: string[] = [];
   duration = 0;
   currentTime = 0;
   selectionStart = 0;
   selectionEnd = 0;
-  frameFormat: 'png' | 'jpg' = 'png';
-  animationFormat: 'gif' | 'webm' = 'gif';
+  frameCaptureReady = false;
+  animationCaptureReady = false;
+  capturingFrame = false;
   capturingAnimation = false;
   sessionBuffer: BufferItem[] = [];
   private nextId = 1;
   private currentUrl?: string;
-  private static readonly GIF_WORKER_PATH = 'assets/gif.worker.js';
+
+  constructor(private changeDetectorRef: ChangeDetectorRef) {}
 
   get selectionStartPercent() {
     return this.duration ? (this.selectionStart / this.duration) * 100 : 0;
@@ -85,12 +89,18 @@ export class VideoTrimmer {
     this.currentTime = 0;
     this.selectionStart = 0;
     this.selectionEnd = 0;
+    this.frameCaptureReady = false;
+    this.animationCaptureReady = false;
+    this.capturingFrame = false;
+    this.capturingAnimation = false;
   }
 
   onLoadedMetadata(event: Event) {
     const video = event.target as HTMLVideoElement;
     this.duration = video.duration || 0;
     this.loaded = true;
+    this.frameCaptureReady = this.isVideoReady(video);
+    this.animationCaptureReady = this.isVideoReady(video);
     this.selectionStart = 0;
     this.selectionEnd = Math.min(3, this.duration);
     this.currentTime = 0;
@@ -102,12 +112,32 @@ export class VideoTrimmer {
     this.currentTime = video.currentTime;
   }
 
+  onVideoTagsInput(value: string) {
+    if (!value.includes(',')) {
+      this.videoTagsInput = value;
+      return;
+    }
+
+    const parts = value.split(',');
+    const nextTags = parts
+      .slice(0, -1)
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+    if (nextTags.length) {
+      this.videoTags = [...this.videoTags, ...nextTags];
+    }
+
+    this.videoTagsInput = parts.at(-1)?.trimStart() ?? '';
+  }
+
+  removeVideoTag(index: number) {
+    this.videoTags = this.videoTags.filter((_, i) => i !== index);
+  }
+
   setPlayhead(event: Event) {
     const value = parseFloat((event.target as HTMLInputElement).value);
-    this.currentTime = value;
-    if (this.videoPlayer?.nativeElement) {
-      this.videoPlayer.nativeElement.currentTime = value;
-    }
+    this.seekTo(value);
   }
 
   setSelectionStart(event: Event) {
@@ -131,12 +161,32 @@ export class VideoTrimmer {
     event.stopPropagation();
     this.activeDrag = type;
     (event.currentTarget as HTMLElement)?.setPointerCapture?.(event.pointerId);
+    this.updateTimelinePosition(event);
     document.addEventListener('pointermove', this.pointerMoveListener, { passive: false });
     document.addEventListener('pointerup', this.pointerUpListener);
     document.addEventListener('pointercancel', this.pointerUpListener);
   }
 
+  movePlayheadFromTimeline(event: PointerEvent) {
+    if (!this.loaded) {
+      return;
+    }
+
+    this.activeDrag = 'playhead';
+    this.updateTimelinePosition(event);
+    this.activeDrag = null;
+  }
+
   private onDocumentPointerMove(event: PointerEvent) {
+    if (!this.activeDrag || !this.timelineTrack || !this.duration) {
+      return;
+    }
+
+    event.preventDefault();
+    this.updateTimelinePosition(event);
+  }
+
+  private updateTimelinePosition(event: PointerEvent) {
     if (!this.activeDrag || !this.timelineTrack || !this.duration) {
       return;
     }
@@ -148,13 +198,12 @@ export class VideoTrimmer {
 
     if (this.activeDrag === 'start') {
       this.selectionStart = Math.min(Math.max(0, value), this.selectionEnd - 0.04);
+      this.seekTo(this.selectionStart);
     } else if (this.activeDrag === 'end') {
       this.selectionEnd = Math.max(Math.min(this.duration, value), this.selectionStart + 0.04);
+      this.seekTo(this.selectionEnd);
     } else {
-      this.currentTime = value;
-      if (this.videoPlayer?.nativeElement) {
-        this.videoPlayer.nativeElement.currentTime = value;
-      }
+      this.seekTo(value);
     }
   }
 
@@ -166,25 +215,33 @@ export class VideoTrimmer {
   }
 
   async captureFrame() {
-    if (!this.loaded) {
+    if (!this.frameCaptureReady || this.capturingFrame) {
       return;
     }
-    const thumbnail = this.captureThumbnail();
-    const blob = await this.captureFrameBlob();
-    const item: BufferItem = {
-      id: this.nextId++,
-      thumbnail,
-      name: `frame-${this.nextId}.${this.frameFormat}`,
-      type: this.frameFormat,
-      tags: [],
-      blob,
-      mimeType: `image/${this.frameFormat}`,
-    };
-    this.sessionBuffer = [item, ...this.sessionBuffer];
+
+    this.capturingFrame = true;
+
+    try {
+      const thumbnail = this.captureThumbnail();
+      const blob = await this.captureFrameBlob();
+      const item: BufferItem = {
+        id: this.nextId++,
+        thumbnail,
+        name: `frame-${this.nextId}.jpg`,
+        type: 'jpg',
+        tags: [],
+        blob,
+        mimeType: 'image/jpeg',
+      };
+      this.sessionBuffer = [item, ...this.sessionBuffer];
+    } finally {
+      this.capturingFrame = false;
+      this.changeDetectorRef.detectChanges();
+    }
   }
 
   async captureAnimation() {
-    if (!this.loaded || this.capturingAnimation) {
+    if (!this.animationCaptureReady || this.capturingAnimation) {
       return;
     }
 
@@ -192,22 +249,21 @@ export class VideoTrimmer {
     const thumbnail = this.captureThumbnail();
 
     try {
-      const blob = await (this.animationFormat === 'webm'
-        ? this.captureSegmentWebM()
-        : this.captureSegmentGif());
+      const blob = await this.captureSegmentWebM();
 
       const item: BufferItem = {
         id: this.nextId++,
         thumbnail,
-        name: `animation-${this.nextId}.${this.animationFormat}`,
-        type: this.animationFormat,
+        name: `animation-${this.nextId}.webm`,
+        type: 'webm',
         tags: [],
         blob,
-        mimeType: this.animationFormat === 'webm' ? 'video/webm' : 'image/gif',
+        mimeType: 'video/webm',
       };
       this.sessionBuffer = [item, ...this.sessionBuffer];
     } finally {
       this.capturingAnimation = false;
+      this.changeDetectorRef.detectChanges();
     }
   }
 
@@ -227,7 +283,7 @@ export class VideoTrimmer {
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     return new Promise<Blob>((resolve) => {
-      canvas.toBlob((blob) => resolve(blob ?? new Blob()), `image/${this.frameFormat}`, 0.92);
+      canvas.toBlob((blob) => resolve(blob ?? new Blob()), 'image/jpeg', 0.92);
     });
   }
 
@@ -278,98 +334,6 @@ export class VideoTrimmer {
     } finally {
       this.cleanupHiddenVideo(video);
     }
-  }
-
-  private async captureSegmentGif(): Promise<Blob> {
-    const GIF = await this.ensureGifLibLoaded();
-    if (!GIF) {
-      throw new Error('Biblioteca GIF não carregada.');
-    }
-
-    const video = await this.createHiddenVideo();
-    try {
-      await this.seekVideo(video, this.selectionStart);
-
-      const sourceWidth = video.videoWidth || 640;
-      const sourceHeight = video.videoHeight || 360;
-      const width = Math.min(480, sourceWidth);
-      const height = Math.round((width / sourceWidth) * sourceHeight);
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Canvas não suportado para GIF.');
-      }
-
-      const duration = Math.max(this.selectionEnd - this.selectionStart, 0.2);
-      const fps = 8;
-      const frameCount = Math.min(20, Math.max(1, Math.round(duration * fps)));
-      const frameDelay = Math.round(1000 / fps);
-
-      const gif = new GIF({
-        workers: 2,
-        quality: 10,
-        workerScript: VideoTrimmer.GIF_WORKER_PATH,
-        width,
-        height,
-        background: '#000000',
-        debug: false,
-      });
-
-      for (let index = 0; index < frameCount; index += 1) {
-        const time = this.selectionStart + (duration * index) / Math.max(frameCount - 1, 1);
-        await this.seekVideo(video, time);
-        ctx.drawImage(video, 0, 0, width, height);
-        gif.addFrame(canvas, { copy: true, delay: frameDelay });
-      }
-
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        gif.on('finished', resolve);
-        gif.on('abort', () => reject(new Error('Geração de GIF abortada.')));
-        gif.on('error', reject);
-        gif.render();
-      });
-
-      return blob;
-    } finally {
-      this.cleanupHiddenVideo(video);
-    }
-  }
-
-  private async ensureGifLibLoaded(): Promise<any> {
-    const win = window as any;
-    if (win.GIF) {
-      return win.GIF;
-    }
-
-    if (document.querySelector('script[data-gif-lib]')) {
-      return new Promise<any>((resolve) => {
-        const interval = window.setInterval(() => {
-          if (win.GIF) {
-            window.clearInterval(interval);
-            resolve(win.GIF);
-          }
-        }, 50);
-      });
-    }
-
-    return new Promise<any>((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'assets/gif.js';
-      script.async = true;
-      script.setAttribute('data-gif-lib', 'true');
-      script.onload = () => {
-        if (win.GIF) {
-          resolve(win.GIF);
-        } else {
-          reject(new Error('GIF script carregado, mas objeto GIF não encontrado.'));
-        }
-      };
-      script.onerror = () => reject(new Error('Falha ao carregar biblioteca GIF.'));
-      document.body.appendChild(script);
-    });
   }
 
   private createHiddenVideo(): Promise<HTMLVideoElement> {
@@ -453,6 +417,10 @@ export class VideoTrimmer {
     item.tags = item.tags.filter((_, i) => i !== index);
   }
 
+  deleteItem(itemId: number) {
+    this.sessionBuffer = this.sessionBuffer.filter((item) => item.id !== itemId);
+  }
+
   downloadItem(item: BufferItem) {
     if (!item.blob) {
       return;
@@ -478,6 +446,14 @@ export class VideoTrimmer {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
   }
 
+  private seekTo(seconds: number) {
+    const value = Math.min(Math.max(seconds, 0), this.duration || seconds);
+    this.currentTime = value;
+    if (this.videoPlayer?.nativeElement) {
+      this.videoPlayer.nativeElement.currentTime = value;
+    }
+  }
+
   private captureThumbnail() {
     const video = this.videoPlayer?.nativeElement;
     if (!video) {
@@ -492,5 +468,9 @@ export class VideoTrimmer {
     }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/png');
+  }
+
+  private isVideoReady(video?: HTMLVideoElement) {
+    return !!video && video.readyState >= HTMLMediaElement.HAVE_METADATA && video.videoWidth > 0 && video.videoHeight > 0;
   }
 }
